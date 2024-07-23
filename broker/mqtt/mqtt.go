@@ -1,6 +1,7 @@
 package mqtt
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"strings"
@@ -222,13 +223,16 @@ func (m *mqttBroker) Subscribe(topic string, handler broker.Handler, binder brok
 
 		p := &publication{topic: mq.Topic(), msg: &msg}
 
+		// remove the last 0x00
+		payload := bytes.TrimRight(mq.Payload(), "\x00")
+
 		if binder != nil {
 			msg.Body = binder()
 		} else {
-			msg.Body = mq.Payload()
+			msg.Body = payload
 		}
 
-		if err := broker.Unmarshal(m.options.Codec, mq.Payload(), &msg.Body); err != nil {
+		if err := broker.Unmarshal(m.options.Codec, payload, &msg.Body); err != nil {
 			p.err = err
 			log.Error("[mqtt] unmarshal message failed:", err)
 			return
